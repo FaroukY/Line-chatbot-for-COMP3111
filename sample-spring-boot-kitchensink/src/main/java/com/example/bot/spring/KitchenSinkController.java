@@ -87,8 +87,6 @@ import java.net.URI;
 @Slf4j
 @LineMessageHandler
 public class KitchenSinkController {
-	
-
 
 	@Autowired
 	private LineMessagingClient lineMessagingClient;
@@ -202,76 +200,58 @@ public class KitchenSinkController {
 		this.reply(replyToken, new TextMessage(message));
 	}
 
-
 	private void handleSticker(String replyToken, StickerMessageContent content) {
 		reply(replyToken, new StickerMessage(content.getPackageId(), content.getStickerId()));
 	}
 
-	private void handleTextContent(String replyToken, Event event, TextMessageContent content)
-            throws Exception {
-        String text = content.getText();
+	private void handleTextContent(String replyToken, Event event, TextMessageContent content) throws Exception {
+		String text = content.getText();
 
-        log.info("Got text message from {}: {}", replyToken, text);
-        switch (text) {
-            case "profile": {
-                String userId = event.getSource().getUserId();
-                if (userId != null) {
-                    lineMessagingClient
-                            .getProfile(userId)
-                            .whenComplete(new ProfileGetter (this, replyToken));
-                } else {
-                    this.replyText(replyToken, "Bot can't use profile API without user ID");
-                }
-                break;
-            }
-            case "confirm": {
-                ConfirmTemplate confirmTemplate = new ConfirmTemplate(
-                        "Do it?",
-                        new MessageAction("Yes", "Yes!"),
-                        new MessageAction("No", "No!")
-                );
-                TemplateMessage templateMessage = new TemplateMessage("Confirm alt text", confirmTemplate);
-                this.reply(replyToken, templateMessage);
-                break;
-            }
-            case "carousel": {
-                String imageUrl = createUri("/static/buttons/1040.jpg");
-                CarouselTemplate carouselTemplate = new CarouselTemplate(
-                        Arrays.asList(
-                                new CarouselColumn(imageUrl, "hoge", "fuga", Arrays.asList(
-                                        new URIAction("Go to line.me",
-                                                      "https://line.me"),
-                                        new PostbackAction("Say hello1",
-                                                           "hello ã�“ã‚“ã�«ã�¡ã�¯")
-                                )),
-                                new CarouselColumn(imageUrl, "hoge", "fuga", Arrays.asList(
-                                        new PostbackAction("è¨€ hello2",
-                                                           "hello ã�“ã‚“ã�«ã�¡ã�¯",
-                                                           "hello ã�“ã‚“ã�«ã�¡ã�¯"),
-                                        new MessageAction("Say message",
-                                                          "Rice=ç±³")
-                                ))
-                        ));
-                TemplateMessage templateMessage = new TemplateMessage("Carousel alt text", carouselTemplate);
-                this.reply(replyToken, templateMessage);
-                break;
-            }
+		log.info("Got text message from {}: {}", replyToken, text);
+		switch (text) {
+		case "profile": {
+			String userId = event.getSource().getUserId();
+			if (userId != null) {
+				lineMessagingClient.getProfile(userId).whenComplete(new ProfileGetter(this, replyToken));
+			} else {
+				this.replyText(replyToken, "Bot can't use profile API without user ID");
+			}
+			break;
+		}
+		case "confirm": {
+			ConfirmTemplate confirmTemplate = new ConfirmTemplate("Do it?", new MessageAction("Yes", "Yes!"),
+					new MessageAction("No", "No!"));
+			TemplateMessage templateMessage = new TemplateMessage("Confirm alt text", confirmTemplate);
+			this.reply(replyToken, templateMessage);
+			break;
+		}
+		case "carousel": {
+			String imageUrl = createUri("/static/buttons/1040.jpg");
+			CarouselTemplate carouselTemplate = new CarouselTemplate(Arrays.asList(
+					new CarouselColumn(imageUrl, "hoge", "fuga",
+							Arrays.asList(new URIAction("Go to line.me", "https://line.me"),
+									new PostbackAction("Say hello1", "hello ã�“ã‚“ã�«ã�¡ã�¯"))),
+					new CarouselColumn(imageUrl, "hoge", "fuga",
+							Arrays.asList(
+									new PostbackAction("è¨€ hello2", "hello ã�“ã‚“ã�«ã�¡ã�¯", "hello ã�“ã‚“ã�«ã�¡ã�¯"),
+									new MessageAction("Say message", "Rice=ç±³")))));
+			TemplateMessage templateMessage = new TemplateMessage("Carousel alt text", carouselTemplate);
+			this.reply(replyToken, templateMessage);
+			break;
+		}
 
-            default:
-            	String reply = null;
-            	try {
-            		reply = database.search(text);
-            	} catch (Exception e) {
-            		reply = text;
-            	}
-                log.info("Returns echo message {}: {}", replyToken, reply);
-                this.replyText(
-                        replyToken,
-                        itscLOGIN + " says " + reply
-                );
-                break;
-        }
-    }
+		default:
+			String reply = null;
+			try {
+				reply = database.search(text);
+			} catch (Exception e) {
+				reply = text;
+			}
+			log.info("Returns echo message {}: {}", replyToken, reply);
+			this.replyText(replyToken, itscLOGIN + " says " + reply);
+			break;
+		}
+	}
 
 	static String createUri(String path) {
 		return ServletUriComponentsBuilder.fromCurrentContextPath().path(path).build().toUriString();
@@ -311,54 +291,43 @@ public class KitchenSinkController {
 		return new DownloadedContent(tempFile, createUri("/downloaded/" + tempFile.getFileName()));
 	}
 
-
-	
-
-
 	public KitchenSinkController() {
-		database = new DatabaseEngine();
+		database = new SQLDatabaseEngine();
 		itscLOGIN = System.getenv("ITSC_LOGIN");
 	}
 
 	private DatabaseEngine database;
 	private String itscLOGIN;
-	
 
-	//The annontation @Value is from the package lombok.Value
-	//Basically what it does is to generate constructor and getter for the class below
-	//See https://projectlombok.org/features/Value
+	// The annontation @Value is from the package lombok.Value
+	// Basically what it does is to generate constructor and getter for the class
+	// below
+	// See https://projectlombok.org/features/Value
 	@Value
 	public static class DownloadedContent {
 		Path path;
 		String uri;
 	}
 
-
-	//an inner class that gets the user profile and status message
+	// an inner class that gets the user profile and status message
 	class ProfileGetter implements BiConsumer<UserProfileResponse, Throwable> {
 		private KitchenSinkController ksc;
 		private String replyToken;
-		
+
 		public ProfileGetter(KitchenSinkController ksc, String replyToken) {
 			this.ksc = ksc;
 			this.replyToken = replyToken;
 		}
+
 		@Override
-    	public void accept(UserProfileResponse profile, Throwable throwable) {
-    		if (throwable != null) {
-            	ksc.replyText(replyToken, throwable.getMessage());
-            	return;
-        	}
-        	ksc.reply(
-                	replyToken,
-                	Arrays.asList(new TextMessage(
-                		"Display name: " + profile.getDisplayName()),
-                              	new TextMessage("Status message: "
-                            		  + profile.getStatusMessage()))
-        	);
-    	}
-    }
-	
-	
+		public void accept(UserProfileResponse profile, Throwable throwable) {
+			if (throwable != null) {
+				ksc.replyText(replyToken, throwable.getMessage());
+				return;
+			}
+			ksc.reply(replyToken, Arrays.asList(new TextMessage("Display name: " + profile.getDisplayName()),
+					new TextMessage("Status message: " + profile.getStatusMessage())));
+		}
+	}
 
 }
